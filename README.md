@@ -42,11 +42,5 @@ Das Projekt kombiniert ein Django REST Backend mit einem React/Vite Frontend. Es
 - HTTPS / Let’s Encrypt
 - Ubuntu Server
 
-## Lokaler Start
 
-### Backend starten
 
-```bash
-cd "/home/tamira/Dokumente/web app/automatisierung-tool"
-source venv/bin/activate
-python manage.py runserver
