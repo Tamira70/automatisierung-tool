@@ -1,12 +1,13 @@
 # 🚀 Automatisierung Tool
 
 Eine moderne Fullstack-Webanwendung zur digitalen Aufgaben- und Prozessverwaltung.  
-Das Projekt kombiniert ein **Django REST Backend** mit einem **React/TypeScript Frontend** und bietet Registrierung, Login, JWT-Authentifizierung, Kanban-Board, Dashboard-Statistiken, Diagramme und ein produktives Deployment mit Apache, Gunicorn und HTTPS.
+Das Projekt kombiniert ein **Django REST Backend** mit einem **React/TypeScript Frontend** und bietet Registrierung, Login, JWT-Authentifizierung, Kanban-Board, Dashboard-Statistiken, Diagramme sowie ein produktives Deployment mit Apache, Gunicorn und HTTPS.
 
 ---
 
+---
 
-### 🔐 Demo-Zugang
+## 🔐 Demo-Zugang
 
 ```text
 Benutzername: demo
@@ -70,6 +71,7 @@ Alternativ kann direkt über die Anwendung ein eigener Account erstellt werden.
 - HTTPS mit Zertifikat
 - Produktiver Betrieb auf Ubuntu Server
 - React/Vite Produktionsbuild
+- Docker Compose Setup für lokale Container-Umgebung
 
 ---
 
@@ -83,7 +85,8 @@ Alternativ kann direkt über die Anwendung ein eigener Account erstellt werden.
 | Django | Webframework |
 | Django REST Framework | REST API |
 | SimpleJWT | JWT Authentifizierung |
-| SQLite | Datenbank für dieses Projekt |
+| SQLite | Lokale Standard-Datenbank |
+| PostgreSQL | Datenbank im Docker-Setup |
 | Gunicorn | Produktiver WSGI Server |
 
 ### Frontend
@@ -96,12 +99,15 @@ Alternativ kann direkt über die Anwendung ein eigener Account erstellt werden.
 | dnd-kit | Drag & Drop |
 | Recharts | Diagramme und Dashboard |
 
-### Deployment
+### Deployment / Infrastruktur
 
 | Technologie | Einsatz |
 |---|---|
-| Apache | Webserver und Reverse Proxy |
+| Apache | Webserver und Reverse Proxy im Live-Betrieb |
+| Nginx | Reverse Proxy im Docker-Setup |
 | Gunicorn | Backend Server |
+| Docker Compose | Lokale Container-Umgebung |
+| PostgreSQL | Datenbank im Container |
 | Ubuntu Server | Serverumgebung |
 | HTTPS | Sichere Verbindung |
 
@@ -150,10 +156,16 @@ automatisierung-tool/
 ├── frontend/
 │   ├── src/
 │   │   └── App.tsx
+│   ├── Dockerfile
+│   ├── nginx.conf
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── README.md
 │
+├── Dockerfile.backend
+├── docker-compose.yml
+├── .dockerignore
+├── .env.docker.example
 ├── manage.py
 ├── requirements.txt
 ├── README.md
@@ -162,7 +174,7 @@ automatisierung-tool/
 
 ---
 
-## ⚙️ Lokale Installation
+## ⚙️ Lokale Installation ohne Docker
 
 ### 1. Repository klonen
 
@@ -227,6 +239,120 @@ http://localhost:5173/automatisierung-tool/
 
 ---
 
+## 🐳 Start mit Docker Compose
+
+Das Projekt kann alternativ vollständig mit Docker Compose gestartet werden.  
+Dabei werden automatisch folgende Dienste gestartet:
+
+```text
+Frontend: React/Vite Build über Nginx
+Backend: Django REST API über Gunicorn
+Datenbank: PostgreSQL
+```
+
+### Voraussetzungen
+
+- Docker
+- Docker Compose Plugin
+
+Version prüfen:
+
+```bash
+docker --version
+docker compose version
+```
+
+### Docker-Umgebungsdatei erstellen
+
+```bash
+cp .env.docker.example .env.docker
+```
+
+Die Datei `.env.docker` enthält lokale Docker-Konfigurationen wie Datenbankname, Benutzer, Passwort und Django Secret Key.
+
+> Hinweis: `.env.docker` wird nicht ins GitHub-Repository hochgeladen.
+
+### Docker-Container starten
+
+```bash
+docker compose up --build
+```
+
+Danach ist die Anwendung lokal erreichbar unter:
+
+```text
+http://localhost:8090/automatisierung-tool/
+```
+
+### Container im Hintergrund starten
+
+```bash
+docker compose up -d --build
+```
+
+### Container stoppen
+
+```bash
+docker compose down
+```
+
+### Logs anzeigen
+
+```bash
+docker compose logs -f
+```
+
+### Demo-User im Docker-System anlegen
+
+```bash
+docker compose exec backend python manage.py shell
+```
+
+Dann im Django-Shell-Fenster:
+
+```python
+from django.contrib.auth.models import User
+from automation.models import Task
+
+user, created = User.objects.get_or_create(username="demo")
+user.set_password("demo123456")
+user.is_active = True
+user.save()
+
+Task.objects.get_or_create(
+    title="Docker Deployment testen",
+    created_by=user,
+    defaults={
+        "description": "Automatisierung Tool lokal mit Docker Compose starten.",
+        "status": "offen",
+        "priority": "hoch",
+    },
+)
+
+print("Demo-Zugang fertig: demo / demo123456")
+exit()
+```
+
+### Docker-Setup Übersicht
+
+```text
+Browser
+   ↓
+Nginx Container
+   ↓
+React Frontend: /automatisierung-tool/
+   ↓
+Proxy: /automatisierung-tool-api/
+   ↓
+Django Backend Container
+   ↓
+PostgreSQL Container
+```
+
+Dieses Docker-Setup zeigt, dass die Anwendung reproduzierbar und containerisiert gestartet werden kann.
+
+---
+
 ## 🔐 Umgebungsvariablen
 
 Für lokale Entwicklung und Produktion werden Vite-Umgebungsvariablen genutzt.
@@ -241,6 +367,22 @@ VITE_API_BASE=http://127.0.0.1:8000/api
 
 ```env
 VITE_API_BASE=/automatisierung-tool-api
+```
+
+Für Docker wird eine eigene Datei genutzt:
+
+### `.env.docker.example`
+
+```env
+DJANGO_SECRET_KEY=django-insecure-docker-dev-key-change-me
+DJANGO_DEBUG=False
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+
+POSTGRES_DB=automation
+POSTGRES_USER=automation
+POSTGRES_PASSWORD=automation_password
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
 ```
 
 Für Django wird der Secret Key über eine Umgebungsvariable gelesen:
@@ -337,16 +479,13 @@ Dieses Projekt wurde als Portfolio-Projekt entwickelt, um folgende Fähigkeiten 
 - Frontend State Management
 - Drag & Drop Interaktion
 - Dashboard-Visualisierung
+- Docker Compose Setup
+- PostgreSQL im Container
 - Deployment mit Apache, Gunicorn und HTTPS
 - Debugging und produktionsnahes Arbeiten
 
 ---
 
-## 👩‍💻 Entwicklerin
-
-**Tamira**
-
-GitHub: [Tamira70](https://github.com/Tamira70)
 
 ---
 
@@ -357,10 +496,10 @@ GitHub: [Tamira70](https://github.com/Tamira70)
 ✅ Demo-Zugang aktiv  
 ✅ Dashboard aktiv  
 ✅ HTTPS aktiv  
+✅ Docker Compose Setup aktiv  
 
 ---
 
 ## 📄 Hinweis
 
-Dieses Projekt dient als Portfolio-Projekt und zeigt eine vollständige Fullstack-Anwendung mit Backend, Frontend, Authentifizierung, Dashboard und Deployment.
-
+Dieses Projekt dient als Portfolio-Projekt und zeigt eine vollständige Fullstack-Anwendung mit Backend, Frontend, Authentifizierung, Dashboard, Docker-Setup und Deployment.
